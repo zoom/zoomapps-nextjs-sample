@@ -34,9 +34,11 @@ You can use the following example ngrok [configuration file](https://gist.github
 $ ngrok start nextjs supabase
 ```
 
-Ngrok will output the origin it has created for your tunnels, eg https://9a20-38-99-100-7.ngrok.io. You'll need to use the https origin from the Ngrok terminal output or what tunnel service of your when testing locally. In the pre-defined configuration below, replace all instances of `example.ngrok.app` with your actual ngrok domain.
+Ngrok will output the origin it has created for your tunnels, eg https://9a20-38-99-100-7.ngrok.io. You'll need to use the https origin from the Ngrok terminal output or what tunnel service of your when testing locally. 
 
 ![HTTPS tunnel](/assets/ngrok-https-tunnel.png)
+
+In the pre-defined configuration below, replace all instances of `example.ngrok.app` with your actual ngrok domain.
 
 ---
 
