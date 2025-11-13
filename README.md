@@ -34,6 +34,9 @@ Please see the .env.local.example file in the repository.
 
 * Create a .env.local file by copying the example and filling in the values
   * If you are in development, use the Client ID and Client secret under Development
+
+> :warning: **Do not store credentials in plain text on production environments**
+
 ## Start multiple ngrok endpoints
 
 To run multiple ngrok connections using a configuration file, run:
@@ -108,7 +111,7 @@ You can use the following example ngrok [configuration file](https://gist.github
    * The frontend (Next.js) will be available at `http://localhost:3000` and at ngrok url endpoint.
 
 ## Additional Resources
-* [Getting started with Zoom Apps SDK codelab](https://just-zoomit.github.io/get-started-with-zoomapps-sdk/#0)
+* [Getting started with Zoom Apps SDK codelab](https://just-zoomit.github.io/get-started-with-zoomapps-sdk/#0) - COMING SOON!
   
 ## License
 

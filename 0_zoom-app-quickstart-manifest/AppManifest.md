@@ -1,7 +1,56 @@
-## Zoom App Manifest configuration
+##  Zoom App Manifest configuration
 
-Replace any placeholder URL such as https://example.ngrok.io with your actual ngrok-generated URL.
+This guide shows how to create a general app with a pre-defined configuration a Zoom Contact Center App app using the **App Manifest API**.
 
+### Set up local developer env with Ngrok (reverse proxy)
+Zoom Apps do not support localhost, and must be served over https. To develop locally, you need to tunnel traffic to this application via https. Usually ngrok allows forwarding a single port, but if you add the following to your ngrok configuration file, you can serve up both with a single command. 
+
+```bash
+$ ngrok config edit
+```
+
+```
+version: 3
+agent:
+    authtoken: {YOUR_AUTH_TOKEN}
+endpoints:
+    - name: express
+      url: example.ngrok.io
+      upstream:
+          url: 3000
+    - name: nextjs
+      url: example.ngrok.io
+      upstream:
+          url: 3000
+    - name: supabase
+      url: example-backend.ngrok.io
+      upstream:
+          url: 54321
+```
+You can use the following example ngrok [configuration file](https://gist.github.com/just-zoomit/d07f988c54d89f71fcc6b2643aa1223c) as a reference:
+
+
+```bash
+$ ngrok start nextjs supabase
+```
+
+Ngrok will output the origin it has created for your tunnels, eg https://9a20-38-99-100-7.ngrok.io. You'll need to use the https origin from the Ngrok terminal output or what tunnel service of your when testing locally. In the pre-defined configuration below, replace all instances of `example.ngrok.app` with your actual ngrok domain.
+
+![HTTPS tunnel](/assets/ngrok-https-tunnel.png)
+
+---
+
+### Create and configure Marketplace App
+
+1. Navigate to the [Zoom Makertplace](https://marketplace.zoom.us/develop/create), create a general app, and take note of credentials you will need them for making API request. 
+
+2. On the Scope page, select the following:
+     * Edit marketplace app 
+     * View marketplace app information for the account
+
+3. Use the [Update an app by manifest](https://developers.zoom.us/docs/api/marketplace/#tag/manifest/put/marketplace/apps/{appId}/manifest) endpoint to quickly configure a Zoom Marketplace app.
+
+## Example request
 ```
 {
     "manifest": {
