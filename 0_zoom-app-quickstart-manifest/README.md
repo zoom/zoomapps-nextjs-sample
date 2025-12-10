@@ -52,8 +52,6 @@ In the pre-defined configuration below, replace all instances of `example.ngrok.
 
 3. Use the [Update an app by manifest](https://developers.zoom.us/docs/api/marketplace/#tag/manifest/put/marketplace/apps/{appId}/manifest) endpoint to quickly configure a Zoom Marketplace app.
 
-
-
 ## Example request
 
 ```
