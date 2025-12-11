@@ -1,6 +1,6 @@
 /**
  * Refactored Zoom App Container
- * Clean, focused component with separated concerns
+ * Third-party OAuth via Supabase
  */
 
 "use client";
@@ -12,55 +12,32 @@ import { signInWithZoomApp } from "@/app/actions";
 import { AuthButtons } from "./auth-buttons";
 import { AuthStatus } from "./auth-status";
 
-const HARDCODED_CODE_CHALLENGE = "ZjBjMDdjYWEwODJkYjQ0NDZjNDEwODc0MzljYjA2ZGRlYTk3YzM0YmI3YzljZDVjNTcxOTI0NzMyODhhMmZhYg==";
-const HARDCODED_STATE = "TIA5UgoMte";
-
 export default function ZoomAppContainer() {
   const location = usePathname();
-  
+
   const {
     authStatus,
     error: authError,
     state,
-    handleSessionHydration,
-    initiateZoomAppAuth,
   } = useAuthFlow();
 
   const {
     isConfigured,
     error: sdkError,
-    authorize,
     openUrl,
-  } = useZoomSDK({
-    onAuthorized: (event) => {
-      
-      console.log("🎯 Zoom App (embedded client) - User authorization for third-party OAuth completed:", event);
-      
-      handleSessionHydration(event.state);
-    },
-  });
-
-  const handleZoomClientAuth = async () => {
-    try {
-      await authorize(HARDCODED_CODE_CHALLENGE, HARDCODED_STATE);
-    } catch (err) {
-      
-      console.error("❌ Zoom App (embedded client) - Third-party OAuth authorization failed:", err);
-      
-    }
-  };
+  } = useZoomSDK();
 
   const handleSupabaseAuth = async () => {
     try {
       const { url } = await signInWithZoomApp();
       await openUrl(url);
-      
+
       console.log("✅ Zoom App (embedded client) - Third-party OAuth URL opened via Zoom SDK for Supabase authentication");
-      
+
     } catch (err) {
-      
+
       console.error("❌ Zoom App (embedded client) - Third-party Supabase authentication via Zoom SDK failed:", err);
-      
+
     }
   };
 
@@ -94,7 +71,6 @@ export default function ZoomAppContainer() {
       <AuthButtons
         isConfigured={isConfigured}
         authStatus={authStatus}
-        onZoomClientAuth={handleZoomClientAuth}
         onSupabaseAuth={handleSupabaseAuth}
       />
 

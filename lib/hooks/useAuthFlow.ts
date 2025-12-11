@@ -64,29 +64,6 @@ export function useAuthFlow() {
     }
   };
 
-  const initiateZoomAppAuth = async () => {
-    try {
-      setAuthStatus("loading");
-      setError(null);
-
-      // This will be called from the component that uses this hook
-      // The actual OAuth initiation should be done via server action
-      
-      console.log("✅ Zoom App (embedded client) - Third-party OAuth authentication initiation requested");
-      
-      setAuthStatus("success");
-      return Promise.resolve({ url: "" }); // Return structure for compatibility
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to initiate auth";
-      
-      console.error("❌ Zoom App (embedded client) - Third-party OAuth authentication failed:", errorMessage);
-      
-      setError(errorMessage);
-      setAuthStatus("error");
-      throw err;
-    }
-  };
-
   const resetAuth = () => {
     setAuthStatus("idle");
     setError(null);
@@ -96,8 +73,6 @@ export function useAuthFlow() {
     authStatus,
     error,
     state,
-    handleSessionHydration,
-    initiateZoomAppAuth,
     resetAuth,
   };
 }
