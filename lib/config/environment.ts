@@ -20,6 +20,7 @@ interface SupabaseConfig {
 interface RedisConfig {
   url: string;
   token: string;
+  encryptionKey: string;
 }
 
 interface AppConfig {
@@ -67,6 +68,7 @@ class EnvironmentConfig {
     this.redis = {
       url: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL || "",
       token: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN || "",
+      encryptionKey: process.env.REDIS_ENCRYPTION_KEY || "",
     };
 
     this.app = {
@@ -80,19 +82,26 @@ class EnvironmentConfig {
   private validateRequiredEnvVars() {
     const required = [
       "ZOOM_CLIENT_ID",
-      "ZOOM_CLIENT_SECRET", 
+      "ZOOM_CLIENT_SECRET",
       "ZOOM_REDIRECT_URL",
 
       "NEXT_PUBLIC_SUPABASE_URL",
       "NEXT_PUBLIC_SUPABASE_ANON_KEY",
       "NEXT_PUBLIC_UPSTASH_REDIS_REST_URL",
       "NEXT_PUBLIC_UPSTASH_REDIS_REST_TOKEN",
+      "REDIS_ENCRYPTION_KEY",
     ];
 
     const missing = required.filter(key => !process.env[key]);
-    
+
     if (missing.length > 0) {
       throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+    }
+
+    // Validate encryption key format (64 hex characters)
+    const encryptionKey = process.env.REDIS_ENCRYPTION_KEY;
+    if (encryptionKey && !/^[0-9a-f]{64}$/i.test(encryptionKey)) {
+      throw new Error('REDIS_ENCRYPTION_KEY must be a 64-character hexadecimal string. Generate one using: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
     }
   }
 }

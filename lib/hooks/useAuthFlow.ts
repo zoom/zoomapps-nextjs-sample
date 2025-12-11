@@ -5,7 +5,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { authService } from "@/lib/services/auth.service";
-import { redisService } from "@/lib/services/redis.service";
 import type { AuthStatus } from "@/lib/types/auth";
 
 export function useAuthFlow() {
@@ -28,27 +27,31 @@ export function useAuthFlow() {
       setAuthStatus("loading");
       setError(null);
 
-      
-      console.log("🔐 Zoom App (embedded client) - Retrieving third-party OAuth tokens from Redis:", cacheState);
-      
-      const tokenData = await redisService.getSupabaseTokens(cacheState);
+      console.log("🔐 Zoom App (embedded client) - Retrieving third-party OAuth tokens via API:", cacheState);
 
-      if (!tokenData.accessToken || !tokenData.refreshToken) {
-        throw new Error("Incomplete token data received from cache");
+      // Call server-side API to retrieve tokens from Redis
+      const response = await fetch(`/api/tokens?state=${encodeURIComponent(cacheState)}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to retrieve tokens: ${response.statusText}`);
       }
 
-      
+      const tokenData = await response.json();
+
+      if (!tokenData.accessToken || !tokenData.refreshToken) {
+        throw new Error("Incomplete token data received from API");
+      }
+
       console.log("🔑 Zoom App (embedded client) - Setting Supabase session with cached third-party OAuth tokens");
-      
+
       const session = await authService.setClientSession(
         tokenData.accessToken,
         tokenData.refreshToken
       );
 
       if (session) {
-        
         console.log("✅ Zoom App (embedded client) - Third-party OAuth authentication successful, redirecting to dashboard");
-        
+
         setAuthStatus("success");
         window.location.href = "/dashboard";
       } else {
@@ -56,9 +59,9 @@ export function useAuthFlow() {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Authentication failed";
-      
+
       console.error("❌ Zoom App (embedded client) - Third-party OAuth session hydration failed:", errorMessage);
-      
+
       setError(errorMessage);
       setAuthStatus("error");
     }

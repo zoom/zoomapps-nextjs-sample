@@ -1,6 +1,8 @@
-// token-store.js (or .ts)
+// token-store.ts
+// Secure token storage with encryption at rest
 
 import { Redis } from '@upstash/redis';
+import { encrypt, decrypt } from '@/lib/utils/encryption';
 
 const redis = new Redis({
   url: process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
@@ -31,7 +33,7 @@ export interface SupabaseTokens {
 export async function getSupabaseUser(
   state: string
 ): Promise<SupabaseTokens> {
-  
+
   console.log("Zoom App (embedded client) - Third-party OAuth state value:",state)
   const key = `supabase:user:${state}`;
   const raw = await redis.get(key);
@@ -40,13 +42,19 @@ export async function getSupabaseUser(
     console.error("Zoom App (embedded client) - Third-party OAuth Supabase tokens not found in Redis");
     throw new Error("User not found");
   }
-  // Parse the raw value and ensure it matches SupabaseTokens
-  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+  // Decrypt the encrypted token data
+  const encryptedData = typeof raw === 'string' ? raw : JSON.stringify(raw);
+  const decryptedJson = await decrypt(encryptedData);
+
+  // Parse the decrypted value and ensure it matches SupabaseTokens
+  const parsed = JSON.parse(decryptedJson);
   if (
     typeof parsed.accessToken === 'string' &&
     typeof parsed.refreshToken === 'string' &&
     typeof parsed.expiresAt === 'number'
   ) {
+    console.log("✅ Tokens decrypted successfully from Redis");
     return parsed as SupabaseTokens;
   } else {
     throw new Error("Invalid token format in Redis");
@@ -67,10 +75,15 @@ export async function upsertSupabaseUser(state: string, accessToken: string, ref
   }
 
   const key = `supabase:user:${state}`;
-  const value = JSON.stringify({ accessToken, refreshToken, expiresAt });
+  const plaintext = JSON.stringify({ accessToken, refreshToken, expiresAt });
+
+  // Encrypt the token data before storing in Redis
+  const encryptedValue = await encrypt(plaintext);
+
+  console.log("✅ Tokens encrypted before storing in Redis");
 
   // Set with a TTL of 1 hour (3600 seconds)
-  await redis.set(key, value, { ex: 3600 });
+  await redis.set(key, encryptedValue, { ex: 3600 });
 }
 
 // Update just part of the stored user data
@@ -79,14 +92,21 @@ export async function updateSupabaseUser(
   updates: Partial<Record<string, unknown>>
 ): Promise<void> {
   const key = `supabase:user:${userId}`;
-  const currentStr = await redis.get<string>(key);
-  if (!currentStr) {
+  const encryptedData = await redis.get<string>(key);
+  if (!encryptedData) {
     throw new Error("User not found");
   }
 
-  const existing = JSON.parse(currentStr) as Record<string, unknown>;
+  // Decrypt existing data
+  const decryptedJson = await decrypt(encryptedData);
+  const existing = JSON.parse(decryptedJson) as Record<string, unknown>;
+
+  // Apply updates
   const updated = { ...existing, ...updates };
-  await redis.set(key, JSON.stringify(updated), { ex: 3600 });
+
+  // Re-encrypt and store
+  const encryptedValue = await encrypt(JSON.stringify(updated));
+  await redis.set(key, encryptedValue, { ex: 3600 });
 }
 
 // Remove access token only
@@ -94,15 +114,21 @@ export async function logoutSupabaseUser(
   userId: string
 ): Promise<void> {
   const key = `supabase:user:${userId}`;
-  const currentStr = await redis.get<string>(key);
-  if (!currentStr) {
+  const encryptedData = await redis.get<string>(key);
+  if (!encryptedData) {
     throw new Error("User not found");
   }
 
-  const parsed = JSON.parse(currentStr) as Record<string, unknown>;
+  // Decrypt existing data
+  const decryptedJson = await decrypt(encryptedData);
+  const parsed = JSON.parse(decryptedJson) as Record<string, unknown>;
+
+  // Remove access token
   delete parsed.accessToken;
 
-  await redis.set(key, JSON.stringify(parsed), { ex: 3600 });
+  // Re-encrypt and store
+  const encryptedValue = await encrypt(JSON.stringify(parsed));
+  await redis.set(key, encryptedValue, { ex: 3600 });
 }
 
 // Delete user from Redis

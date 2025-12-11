@@ -1,11 +1,13 @@
 /**
  * Redis Service
  * Centralized Redis operations for token storage and session management
+ * Uses AES-256-GCM encryption for secure token storage
  */
 
 import { Redis } from '@upstash/redis';
 import { config } from '@/lib/config/environment';
 import type { SupabaseTokens } from '@/lib/types/auth';
+import { encrypt, decrypt } from '@/lib/utils/encryption';
 
 class RedisService {
   private redis: Redis;
@@ -33,29 +35,33 @@ class RedisService {
   }
 
   /**
-   * Store Supabase tokens in Redis with TTL
+   * Store Supabase tokens in Redis with TTL (encrypted)
    */
   async storeSupabaseTokens(
-    state: string, 
-    accessToken: string, 
-    refreshToken: string, 
+    state: string,
+    accessToken: string,
+    refreshToken: string,
     expiresAt: number,
     ttl: number = this.DEFAULT_TTL
   ): Promise<void> {
     this.validateTokenInputs(state, accessToken, refreshToken, expiresAt);
 
     const key = this.getUserTokenKey(state);
-    const value = JSON.stringify({ 
-      accessToken, 
-      refreshToken, 
-      expiresAt 
+    const plaintext = JSON.stringify({
+      accessToken,
+      refreshToken,
+      expiresAt
     });
 
-    await this.redis.set(key, value, { ex: ttl });
+    // Encrypt tokens before storing in Redis
+    const encryptedValue = await encrypt(plaintext);
+
+    await this.redis.set(key, encryptedValue, { ex: ttl });
   }
 
   /**
-   * Retrieve Supabase tokens from Redis
+   * Retrieve Supabase tokens from Redis (decrypted)
+   * Handles both encrypted (new) and unencrypted (legacy) tokens
    */
   async getSupabaseTokens(state: string): Promise<SupabaseTokens> {
     const key = this.getUserTokenKey(state);
@@ -65,8 +71,33 @@ class RedisService {
       throw new RedisError("Supabase tokens not found in Redis", "TOKEN_NOT_FOUND");
     }
 
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    
+    const dataStr = typeof raw === 'string' ? raw : JSON.stringify(raw);
+    let parsed: any;
+
+    try {
+      // Try to decrypt first (new encrypted format)
+      const decryptedJson = await decrypt(dataStr);
+      parsed = JSON.parse(decryptedJson);
+      console.log("✅ Tokens decrypted successfully from Redis");
+    } catch (decryptError) {
+      // If decryption fails, try parsing as plain JSON (legacy unencrypted format)
+      console.warn("⚠️  Decryption failed, attempting to parse as legacy unencrypted format");
+      try {
+        parsed = JSON.parse(dataStr);
+        console.log("✅ Legacy unencrypted tokens found, will re-encrypt");
+
+        // Auto-migrate: re-encrypt and store the old unencrypted data
+        const encryptedValue = await encrypt(dataStr);
+        await this.redis.set(key, encryptedValue, { ex: this.DEFAULT_TTL });
+        console.log("✅ Legacy tokens migrated to encrypted format");
+      } catch (parseError) {
+        throw new RedisError(
+          "Failed to decrypt or parse token data. Data may be corrupted.",
+          "DECRYPTION_FAILED"
+        );
+      }
+    }
+
     if (!this.isValidSupabaseTokens(parsed)) {
       throw new RedisError("Invalid token format in Redis", "INVALID_TOKEN_FORMAT");
     }
@@ -105,7 +136,8 @@ class RedisService {
   }
 
   /**
-   * Update specific fields in stored user data
+   * Update specific fields in stored user data (decrypt/update/encrypt)
+   * Handles both encrypted (new) and unencrypted (legacy) data
    */
   async updateUserData(
     state: string,
@@ -113,36 +145,71 @@ class RedisService {
     ttl: number = this.DEFAULT_TTL
   ): Promise<void> {
     const key = this.getUserTokenKey(state);
-    const currentStr = await this.redis.get<string>(key);
-    
-    if (!currentStr) {
+    const rawData = await this.redis.get<string>(key);
+
+    if (!rawData) {
       throw new RedisError("User data not found for update", "USER_NOT_FOUND");
     }
 
-    const existing = JSON.parse(currentStr) as Record<string, unknown>;
+    let existing: Record<string, unknown>;
+
+    try {
+      // Try to decrypt first (new encrypted format)
+      const decryptedJson = await decrypt(rawData);
+      existing = JSON.parse(decryptedJson) as Record<string, unknown>;
+    } catch (decryptError) {
+      // If decryption fails, try parsing as plain JSON (legacy format)
+      try {
+        existing = JSON.parse(rawData) as Record<string, unknown>;
+      } catch (parseError) {
+        throw new RedisError("Failed to decrypt or parse user data", "DATA_CORRUPTED");
+      }
+    }
+
+    // Apply updates
     const updated = { ...existing, ...updates };
-    
-    await this.redis.set(key, JSON.stringify(updated), { ex: ttl });
+
+    // Re-encrypt and store
+    const encryptedValue = await encrypt(JSON.stringify(updated));
+    await this.redis.set(key, encryptedValue, { ex: ttl });
   }
 
   /**
    * Remove access token (logout while keeping refresh token)
+   * Handles both encrypted (new) and unencrypted (legacy) data
    */
   async removeAccessToken(
-    state: string, 
+    state: string,
     ttl: number = this.DEFAULT_TTL
   ): Promise<void> {
     const key = this.getUserTokenKey(state);
-    const currentStr = await this.redis.get<string>(key);
-    
-    if (!currentStr) {
+    const rawData = await this.redis.get<string>(key);
+
+    if (!rawData) {
       throw new RedisError("User not found for logout", "USER_NOT_FOUND");
     }
 
-    const parsed = JSON.parse(currentStr) as Record<string, unknown>;
+    let parsed: Record<string, unknown>;
+
+    try {
+      // Try to decrypt first (new encrypted format)
+      const decryptedJson = await decrypt(rawData);
+      parsed = JSON.parse(decryptedJson) as Record<string, unknown>;
+    } catch (decryptError) {
+      // If decryption fails, try parsing as plain JSON (legacy format)
+      try {
+        parsed = JSON.parse(rawData) as Record<string, unknown>;
+      } catch (parseError) {
+        throw new RedisError("Failed to decrypt or parse user data", "DATA_CORRUPTED");
+      }
+    }
+
+    // Remove access token
     delete parsed.accessToken;
 
-    await this.redis.set(key, JSON.stringify(parsed), { ex: ttl });
+    // Re-encrypt and store
+    const encryptedValue = await encrypt(JSON.stringify(parsed));
+    await this.redis.set(key, encryptedValue, { ex: ttl });
   }
 
   /**

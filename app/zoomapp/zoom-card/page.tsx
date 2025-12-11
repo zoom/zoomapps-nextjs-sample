@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePathname } from "next/navigation";
 
-import { getSupabaseUserbyId, getSupabaseUser } from "@/app/lib/token-store";
 import { createClient } from "@/utils/supabase/client";
 
 
@@ -19,8 +18,8 @@ interface ChatContext {
 }
 
 export default function ZoomCardPage() {
-    const [meetingId, setMeetingId] = useState("97231146424");
-    const [shareUrl, setShareUrl] = useState("https://xcaas.dev");
+    const [meetingId, setMeetingId] = useState("Placeholder for Meeting ID");
+    const [shareUrl, setShareUrl] = useState("Placeholder for URL");
     const [bitmap, setBitmap] = useState("Placeholder for bitmap");
     const [chatContext, setChatContext] = useState<ChatContext | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -33,45 +32,68 @@ export default function ZoomCardPage() {
 
     // ✅ Configure Zoom SDK on mount
     useEffect(() => {
-        zoomSdk.config({
-            capabilities: [
-                "getChatContext",
-                "composeCard",
-                "sendMessageToChat",
-                "getRunningContext"
-            ],
-            version: "0.16.0",
-        });
+        const initializeZoomSDK = async () => {
+            try {
+                await zoomSdk.config({
+                    capabilities: [
+                        "getChatContext",
+                        "composeCard",
+                        "sendMessageToChat",
+                        "getRunningContext",
+                        "getUserContext"
+                    ],
+                    version: "0.16.0",
+                });
 
-        if (!hasRedirected.current) {
-            getSupabaseSessionFromCache();
-        }
+                console.log("✅ Zoom SDK configured successfully");
+
+                // Only call after SDK is configured
+                if (!hasRedirected.current) {
+                    await getSupabaseSessionFromCache();
+                }
+            } catch (err) {
+                console.error("❌ Failed to configure Zoom SDK:", err);
+                setError("Failed to initialize Zoom SDK");
+            }
+        };
+
+        initializeZoomSDK();
     }, []);
 
 
     const getSupabaseSessionFromCache = async () => {
         try {
+            // Get userId from environment variable (for testing/development)
+            const userId = process.env.NEXT_PUBLIC_ZOOM_USER_ID;
 
-            // Make sure this value is retrieved dyncamically or set appropriately
-            const userId = process.env.NEXT_PUBLIC_USER_ID || "INSERT_DEFAULT_USER_ID_HERE";
             if (!userId) {
-                console.error("❌ User ID is not set. Cannot retrieve Supabase session.");
+                console.error("❌ User ID not configured. Set NEXT_PUBLIC_ZOOM_USER_ID in .env.local");
+                setError("User ID not configured. Please set NEXT_PUBLIC_ZOOM_USER_ID in environment.");
                 return;
             }
 
-            // Get latest state for this user
-            const state = await getSupabaseUserbyId(userId);
-            console.log("🔑 Retrieved state for user:", state);
+            console.log("🔑 Team Chat: Using userId from environment:", userId);
 
-            // 🔐 Fetch token data using the retrieved state
-            const tokenData = await getSupabaseUser(typeof state === "string" ? state : "");
-            console.log("🔐 Retrieved Supabase Provider Token:", tokenData);
+            // Call API route to get tokens by userId (server-side lookup)
+            const response = await fetch(`/api/tokens/team-chat?userId=${encodeURIComponent(userId)}`);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error("❌ Failed to retrieve tokens:", errorData);
+                setError(errorData.error || "Failed to retrieve authentication tokens");
+                return;
+            }
+
+            const tokenData = await response.json();
+            console.log("✅ Team Chat: Retrieved tokens successfully");
 
             if (!tokenData.accessToken || !tokenData.refreshToken) {
                 console.error("❌ Token data incomplete.");
+                setError("Incomplete token data received");
                 return;
             }
 
+            // Set Supabase session with retrieved tokens
             const supabase = createClient();
             const { data, error } = await supabase.auth.setSession({
                 access_token: tokenData.accessToken,
@@ -80,14 +102,17 @@ export default function ZoomCardPage() {
 
             if (error) {
                 console.error("❌ Supabase session set error:", error.message);
+                setError(error.message);
                 return;
             }
 
-            console.log("✅ Supabase session set successfully from Redis cache.");
+            console.log("✅ Supabase session set successfully from cached tokens.");
             hasRedirected.current = true;
 
         } catch (err) {
             console.error("❌ Failed to get Supabase tokens from cache:", err);
+            const errorMessage = err instanceof Error ? err.message : "Unknown error";
+            setError(errorMessage);
         }
     };
 
