@@ -71,12 +71,13 @@ function logRequest(url: string, header: string | null, params: URLSearchParams)
 function buildRedirectUrl(request: NextRequest, searchParams: URLSearchParams, origin: string) {
   const next = searchParams.get("next") ?? "/";
 
-  
-  console.log("Zoom App (embedded client) - Redirect target after OAuth:", next);
-  
 
-  const host = "https://" + request.headers.get("x-forwarded-host");
-  return config.app.isDevelopment ? `${host}${next}` : `${origin}${next}`;
+  console.log("Zoom App (embedded client) - Redirect target after OAuth:", next);
+
+
+  // Use trusted SITE_URL from environment instead of x-forwarded-host to prevent Open Redirect
+  const trustedBaseUrl = config.app.siteUrl;
+  return `${trustedBaseUrl}${next}`;
 }
 
 /**
@@ -96,23 +97,25 @@ async function handleActParam(
 
     try {
       const tokenData = await redisService.getSupabaseTokens(state ?? "");
-      
-      console.log("🔐 Zoom App (embedded client) - Third-party OAuth tokens retrieved from Redis:", tokenData, "\n");
-      
 
-      const redirectUrl = new URL("https://donte.ngrok.io");
+      console.log("🔐 Zoom App (embedded client) - Third-party OAuth tokens retrieved from Redis:", tokenData, "\n");
+
+
+      // Use trusted SITE_URL from environment instead of hardcoded URL
+      const redirectUrl = new URL(config.app.siteUrl);
       redirectUrl.searchParams.set("state", state ?? "");
 
-      
+
       console.log("🔄 Zoom App (embedded client) - Redirecting with third-party OAuth tokens:", redirectUrl.toString(), "\n");
-      
+
 
       return NextResponse.redirect(redirectUrl.toString());
     } catch (e) {
-      
+
       console.error("❌ Zoom App (embedded client) - Failed to retrieve third-party OAuth tokens from Redis:", e);
-      
-      return NextResponse.redirect("https://donte.ngrok.io?error=token_not_found");
+
+      // Use trusted SITE_URL from environment instead of hardcoded URL
+      return NextResponse.redirect(`${config.app.siteUrl}?error=token_not_found`);
     }
   }
 

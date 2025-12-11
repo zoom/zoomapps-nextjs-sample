@@ -30,11 +30,7 @@ export async function middleware(request: NextRequest) {
 
   if (access_token && refresh_token) {
     
-    console.log('\n', "🪪  Zoom App (embedded client) - MW Third-party OAuth access token:", access_token);
-    
-    console.log("🔁  Zoom App (embedded client) - MW Third-party OAuth refresh token:", refresh_token);
-    
-    console.log("🔑  Zoom App (embedded client) - MW Third-party OAuth state:", state, "\n");
+   
     
 
     try {
