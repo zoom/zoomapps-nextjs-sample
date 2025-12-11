@@ -1,7 +1,5 @@
-import Hero from '@/components/hero'
 import {headers} from "next/headers";
 import dynamic from "next/dynamic";
-import { redirect } from "next/navigation";
 
 export default async function Page() {
     let Zoom;
@@ -16,12 +14,10 @@ export default async function Page() {
 
         return ( <Zoom />)
     }
-   
+
     return (
         <div>
-            <Hero></Hero>
             {loadZoomApp()}
-           
         </div>
     )
 }
