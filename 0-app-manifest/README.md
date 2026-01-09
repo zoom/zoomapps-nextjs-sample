@@ -1,4 +1,4 @@
-##  Zoom App Manifest configuration
+# Create a Zoom app with the App Manifest API
 
 This guide shows how to create a general app with a pre-defined configuration a Zoom App app using the **App Manifest API**.
 
