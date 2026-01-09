@@ -44,15 +44,53 @@ In the pre-defined configuration below, replace all instances of `example.ngrok.
 
 ### Create and configure Marketplace App
 
-1. Navigate to the [Zoom Makertplace](https://marketplace.zoom.us/develop/create), create a general app, and take note of credentials you will need them for making API request. 
+### 1. Create an OAuth app
+
+👉 **[Click here to create an app on the Zoom App Marketplace](https://marketplace.zoom.us/develop/create)**
+
+* Select **General app** and click **Create**.
+
+> [!NOTE]
+> Take note of your app ID in the URL after app creation -- you will need it to later on.
+---
+
+### 2. Retrieve app credentials
+
+* Click **Manage** > your app
+* Navigate to **Basic Information** > **App Credentials**
+
+> [!Note]
+> Use these credentials for [authorization](https://developers.zoom.us/docs/integrations/oauth/).
+---
+
+### 3. Add required scopes
 
 2. On the Scope page, select the following:
      * Edit marketplace app 
      * View marketplace app information for the account
 
-3. Use the [Update an app by manifest](https://developers.zoom.us/docs/api/marketplace/#tag/manifest/put/marketplace/apps/{appId}/manifest) endpoint to quickly configure a Zoom Marketplace app.
+ --- 
 
-## Example request
+### 4. Update the app using the Manifest API
+
+Use the following endpoint to quickly configure a Zoom Marketplace app:
+
+**Example request:**
+
+```
+PUT /marketplace/apps/{appId}/manifest
+```
+👉 [Update an app by manifest API endpoint](https://developers.zoom.us/docs/api/marketplace/#tag/manifest/put/marketplace/apps/{appId}/manifest)
+
+---
+
+### 5. Use Manifest JSON object to create Zoom App
+ Use an API tool like Postman to send a PUT request to the manifest endpoint with the JSON object below as the request body.
+
+> [!NOTE]
+> Replace placeholder URLs like `https://example.ngrok.io` with your actual tunnel URL (e.g., from ngrok).
+
+**Request body:**
 
 ```
 PUT /marketplace/apps/{appId}/manifest

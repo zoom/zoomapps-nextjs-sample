@@ -1,8 +1,6 @@
 # Zoom Apps SDK Next.js Third Party OAuth sample app
 
-## Overview
-
-This repository contains a sample Zoom app built with Next.js using the Zoom Apps SDK.
+This sample app demonstrates how to build a Zoom app using the Zoom Apps SDK and Next.js, with support for third-party OAuth integration.
 
 **Key features:**
 
@@ -49,7 +47,7 @@ You should the tunnel traffic:
 
 ![HTTPS tunnel](assets/ngrok-https-tunnel.png)
 
-You can use the following example ngrok [configuration file](https://gist.github.com/just-zoomit/d07f988c54d89f71fcc6b2643aa1223c) as a reference:
+You can use the following example ngrok [configu00ration file](https://gist.github.com/just-zoomit/d07f988c54d89f71fcc6b2643aa1223c) as a reference:
 
 | Endpoint name | Public URL                 | Upstream port | Use case / purpose                                                                                 |
 | ------------- | -------------------------- | ------------- | -------------------------------------------------------------------------------------------------- |
